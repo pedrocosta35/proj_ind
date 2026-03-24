@@ -19,10 +19,9 @@ import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Transaction;
 import com.google.cloud.datastore.DatastoreOptions;
 
-import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.adc.firstwebapp.util.RegisterData;
 
-@Path("/register")
+@Path("/createaccount")
 public class RegisterResource {
 
 	private static final Logger LOG = Logger.getLogger(RegisterResource.class.getName());
@@ -30,94 +29,45 @@ public class RegisterResource {
 
 	private final Gson g = new Gson();
 
+	public RegisterResource() {
+	} // Default constructor, nothing to do
 
-	public RegisterResource() {}	// Default constructor, nothing to do
-	
 	@POST
-	@Path("/v1")
 	@Consumes(MediaType.APPLICATION_JSON)
-	
-	public Response registerUserV1(LoginData data) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response createAccount(RegisterData data) {
 		LOG.fine("Attempt to register user: " + data.username);
-	
-		Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
-		Entity user = Entity.newBuilder(userKey)
-						.set("user_pwd", DigestUtils.sha512Hex(data.password))
+
+		if (!data.validRegistration())
+			return Response.status(9906).entity("Invalid input.").build();
+
+		try {
+			Transaction txn = datastore.newTransaction();
+			Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
+			Entity user = txn.get(userKey);
+
+			if (user != null) {
+				txn.rollback();
+				return Response.status(9901).entity("User already exists.").build();
+			} else {
+				user = Entity.newBuilder(userKey)
+						.set("username", data.username)
+						.set("password", DigestUtils.sha512Hex(data.password))
+						.set("adress", data.adress)
+						.set("role", data.role.name())
 						.set("user_creation_time", Timestamp.now())
 						.build();
-		datastore.put(user);
-		LOG.info("User registered " + data.username);
-		return Response.ok().entity(g.toJson(true)).build();
-    }
-
-    @POST
-	@Path("/v2")
-	@Consumes(MediaType.APPLICATION_JSON)
-	public Response registerUserV2(RegisterData data) {
-		LOG.fine("Attempt to register user: " + data.username);
-
-		if(!data.validRegistration())
-			return Response.status(Status.BAD_REQUEST).entity("Missing or wrong parameter.").build();
-					
-		Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
-		Entity user = datastore.get(userKey);
-		
-		if(user != null)
-			return Response.status(Status.BAD_REQUEST).entity("User already exists.").build();
-		
-		user = Entity.newBuilder(userKey)
-				.set("user_name", data.name)
-				.set("user_pwd", DigestUtils.sha512Hex(data.password))
-				.set("user_email", data.email)
-				.set("user_creation_time", Timestamp.now())
-				.build();
-
-		// Concurrency problem...
-		// When we reach here, another client might have put() an entity with the same key...
-		
-		datastore.put(user);
-		LOG.info("User registered " + data.username);
-		
-		
-		return Response.ok().build();
+				txn.put(user);
+				txn.commit();
+				LOG.info("User registered " + data.username);
+				return Response.ok(g.toJson(data.username + data.role)).build();
+			}
+		} catch (Exception e) {
+			LOG.severe("Error registering user: " + e.getMessage());
+			return Response.status(Status.INTERNAL_SERVER_ERROR).entity("Error registering user.").build();
+		} finally {
+			// No need to rollback here, as we only have one transaction and it will be
+			// automatically rolled back if not committed.
+		}
 	}
-
-    @POST
-    @Path("/v3")
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Response registerUserV3(RegisterData data) {
-        LOG.fine("Attempt to register user: " + data.username);
-
-        if(!data.validRegistration())
-            return Response.status(Status.BAD_REQUEST).entity("Missing or wrong parameter.").build();
-
-        try {
-            Transaction txn = datastore.newTransaction();
-            Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
-            Entity user = txn.get(userKey);
-
-            if(user != null) {
-                txn.rollback();
-                return Response.status(Status.CONFLICT).entity("User already exists.").build();
-            }            
-            else {
-                user = Entity.newBuilder(userKey)
-                        .set("user_name", data.name)
-                        .set("user_pwd", DigestUtils.sha512Hex(data.password))
-                        .set("user_email", data.email)
-                        .set("user_creation_time", Timestamp.now())
-                        .build();
-                txn.put(user);
-                txn.commit();
-                LOG.info("User registered " + data.username);
-                return Response.ok().build();
-            }
-        } catch (Exception e) {
-            LOG.severe("Error registering user: " + e.getMessage());
-            return Response.status(Status.INTERNAL_SERVER_ERROR).entity("Error registering user.").build();
-        }
-        finally {
-            // No need to rollback here, as we only have one transaction and it will be automatically rolled back if not committed.
-        }
-    }
 }
