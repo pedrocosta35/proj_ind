@@ -53,7 +53,8 @@ public class RegisterResource {
 				user = Entity.newBuilder(userKey)
 						.set("username", data.username)
 						.set("password", DigestUtils.sha512Hex(data.password))
-						.set("adress", data.adress)
+						.set("phone", data.phone)
+						.set("address", data.address)
 						.set("role", data.role.name())
 						.set("user_creation_time", Timestamp.now())
 						.build();

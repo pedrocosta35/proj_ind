@@ -6,19 +6,19 @@ public class RegisterData {
 	public String password;
 	public String confirmation;
 	public String phone;
-	public String adress;
+	public String address;
 	public Role role;
 
 	public RegisterData() {
 
 	}
 
-	public RegisterData(String username, String password, String confirmation, String phone, String adress, Role role) {
+	public RegisterData(String username, String password, String confirmation, String phone, String address, Role role) {
 		this.username = username;
 		this.password = password;
 		this.confirmation = confirmation;
 		this.phone = phone;
-		this.adress = adress;
+		this.address = address;
 		this.role = role;
 	}
 
@@ -34,10 +34,10 @@ public class RegisterData {
 
 		return nonEmptyOrBlankField(username) &&
 				nonEmptyOrBlankField(password) &&
-				nonEmptyOrBlankField(adress) &&
+				nonEmptyOrBlankField(address) &&
 				nonEmptyOrBlankField(phone) &&
 				checkRole(role) &&
-				adress.contains("@") &&
+				address.contains("@") &&
 				password.equals(confirmation);
 	}
 }

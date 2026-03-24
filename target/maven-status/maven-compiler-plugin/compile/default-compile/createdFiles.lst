@@ -1,3 +1,8 @@
 pt/unl/fct/di/adc/firstwebapp/resources/LoginResource.class
+pt/unl/fct/di/adc/firstwebapp/resources/Produces.class
 pt/unl/fct/di/adc/firstwebapp/resources/ComputationResource.class
+pt/unl/fct/di/adc/firstwebapp/util/Role.class
+pt/unl/fct/di/adc/firstwebapp/resources/RegisterResource.class
+pt/unl/fct/di/adc/firstwebapp/util/RegisterData.class
 pt/unl/fct/di/adc/firstwebapp/util/LoginData.class
+pt/unl/fct/di/adc/firstwebapp/util/AuthToken.class
