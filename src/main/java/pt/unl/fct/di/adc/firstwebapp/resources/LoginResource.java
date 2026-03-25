@@ -44,6 +44,7 @@ import com.google.cloud.datastore.StructuredQuery.CompositeFilter;
 
 import com.google.gson.Gson;
 
+@Path("/")
 @Produces(MediaType.APPLICATION_JSON + ";charset=utf-8")
 public class LoginResource {
 
