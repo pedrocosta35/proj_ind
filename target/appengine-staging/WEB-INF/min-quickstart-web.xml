@@ -8,7 +8,7 @@
         <param-name>org.eclipse.jetty.containerInitializers</param-name>
             
         <param-value><![CDATA[
-    "ContainerInitializer{org.glassfish.jersey.servlet.init.JerseyServletContainerInitializer,interested=[pt.unl.fct.di.adc.firstwebapp.resources.PostRegisterResource, org.glassfish.jersey.jackson.internal.FilteringJacksonJaxbJsonProvider, org.glassfish.jersey.server.wadl.internal.WadlResource, org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJsonProvider, org.glassfish.jersey.server.ResourceConfig, org.glassfish.jersey.jackson.internal.DefaultJacksonJaxbJsonProvider, org.glassfish.jersey.server.ResourceConfig$WrappingResourceConfig, pt.unl.fct.di.adc.firstwebapp.resources.RegisterResource, pt.unl.fct.di.adc.firstwebapp.resources.ComputationResource, org.glassfish.jersey.server.ResourceConfig$RuntimeConfig, org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJaxbJsonProvider],applicable=[],annotated=[]}"]]></param-value>
+    "ContainerInitializer{org.glassfish.jersey.servlet.init.JerseyServletContainerInitializer,interested=[org.glassfish.jersey.jackson.internal.FilteringJacksonJaxbJsonProvider, org.glassfish.jersey.server.wadl.internal.WadlResource, org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJsonProvider, pt.unl.fct.di.adc.firstwebapp.resources.PostRegistrationResource, org.glassfish.jersey.server.ResourceConfig, org.glassfish.jersey.jackson.internal.DefaultJacksonJaxbJsonProvider, org.glassfish.jersey.server.ResourceConfig$WrappingResourceConfig, pt.unl.fct.di.adc.firstwebapp.resources.RegisterResource, pt.unl.fct.di.adc.firstwebapp.resources.ComputationResource, org.glassfish.jersey.server.ResourceConfig$RuntimeConfig, org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJaxbJsonProvider],applicable=[],annotated=[]}"]]></param-value>
           
     </context-param>
       
@@ -429,22 +429,6 @@
         <tracking-mode>COOKIE</tracking-mode>
           
     </session-config>
-      
-    <error-page origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):48">
-            
-        <error-code>500</error-code>
-            
-        <location>/error/500.html</location>
-          
-    </error-page>
-      
-    <error-page origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):49">
-            
-        <error-code>404</error-code>
-            
-        <location>/error/404.html</location>
-          
-    </error-page>
       
     <mime-mapping>
             
