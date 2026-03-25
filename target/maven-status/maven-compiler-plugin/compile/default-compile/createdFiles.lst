@@ -1,13 +1,14 @@
 pt/unl/fct/di/adc/firstwebapp/util/OneUserOpsData.class
+pt/unl/fct/di/adc/firstwebapp/util/ChangePwdData$Input.class
 pt/unl/fct/di/adc/firstwebapp/util/LoginData$Input.class
 pt/unl/fct/di/adc/firstwebapp/resources/PostRegistrationResource$ShowUserRoleResponse.class
 pt/unl/fct/di/adc/firstwebapp/resources/PostRegistrationResource$ModUserResponse.class
-pt/unl/fct/di/adc/firstwebapp/util/ChangeUserData$Input.class
 pt/unl/fct/di/adc/firstwebapp/resources/RegisterResource$RegisterResponse.class
 pt/unl/fct/di/adc/firstwebapp/util/SuccessResponse.class
 pt/unl/fct/di/adc/firstwebapp/resources/RegisterResource.class
 pt/unl/fct/di/adc/firstwebapp/resources/PostRegistrationResource$LoginResponse.class
-pt/unl/fct/di/adc/firstwebapp/util/ChangeUserData.class
+pt/unl/fct/di/adc/firstwebapp/util/ChangePwdData.class
+pt/unl/fct/di/adc/firstwebapp/resources/PostRegistrationResource$ChangeUserPwdResponse.class
 pt/unl/fct/di/adc/firstwebapp/resources/ComputationResource.class
 pt/unl/fct/di/adc/firstwebapp/util/RegisterData$Input.class
 pt/unl/fct/di/adc/firstwebapp/util/FailedResponse$AppError.class
@@ -17,6 +18,8 @@ pt/unl/fct/di/adc/firstwebapp/util/RegisterData.class
 pt/unl/fct/di/adc/firstwebapp/util/LoginData.class
 pt/unl/fct/di/adc/firstwebapp/util/AuthToken.class
 pt/unl/fct/di/adc/firstwebapp/resources/PostRegistrationResource$ShowUsersResponse.class
+pt/unl/fct/di/adc/firstwebapp/util/ChangeRoleData$Input.class
+pt/unl/fct/di/adc/firstwebapp/util/ChangeRoleData.class
 pt/unl/fct/di/adc/firstwebapp/util/ModUserData$Input$Attribute.class
 pt/unl/fct/di/adc/firstwebapp/resources/PostRegistrationResource$ShowSessionsResponse.class
 pt/unl/fct/di/adc/firstwebapp/util/UsersData.class

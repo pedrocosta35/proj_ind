@@ -24,7 +24,8 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.servlet.http.HttpServletRequest;
 
 import pt.unl.fct.di.adc.firstwebapp.util.AuthToken;
-import pt.unl.fct.di.adc.firstwebapp.util.ChangeUserData;
+import pt.unl.fct.di.adc.firstwebapp.util.ChangePwdData;
+import pt.unl.fct.di.adc.firstwebapp.util.ChangeRoleData;
 import pt.unl.fct.di.adc.firstwebapp.util.OneUserOpsData;
 import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse;
 import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
@@ -461,7 +462,7 @@ public class PostRegistrationResource {
 	@Path("/changeuserrole")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response changeUserRole(ChangeUserData data) {
+	public Response changeUserRole(ChangeRoleData data) {
 		if (data == null || data.input.newRole == null || data.token == null || data.token.tokenID == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
@@ -515,6 +516,72 @@ public class PostRegistrationResource {
 
 		public ChangeUserRoleResponse() {
 			this.message = "Role updated successfully";
+		}
+	}
+
+	@POST
+	@Path("/changeuserpwd")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response changeUserPassword(ChangePwdData data) {
+		if (data == null || data.token == null || data.token.tokenID == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
+					.build();
+		}
+
+		if (data.input.newPassword == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_CREDENTIALS)))
+					.build();
+		}
+
+		Key tokenKey = datastore.newKeyFactory()
+				.addAncestors(PathElement.of("User", data.token.username))
+				.setKind("AuthToken")
+				.newKey(data.token.tokenID);
+
+		Entity tokenEntity = datastore.get(tokenKey);
+		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER, Role.USER);
+		if (tokenCheck != null) {
+			return tokenCheck; // stops here if token is invalid
+		}
+
+		Entity user = datastore.get(userKeyFactory.newKey(data.input.username));
+		if (user == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
+					.build();
+		}
+
+		if (!tokenEntity.getString("username").equals(data.input.username)) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED))) // forbidden makes more sense
+					.build();
+		}
+
+		String hashedOldPassword = DigestUtils.sha512Hex(data.input.oldPassword);
+		if (!hashedOldPassword.equals(user.getString("password"))) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_CREDENTIALS)))
+					.build();
+		}
+
+		String hashedNewPassword = DigestUtils.sha512Hex(data.input.newPassword);
+		Entity updatedUser = Entity.newBuilder(user)
+				.set("password", hashedNewPassword)
+				.build();
+
+		datastore.update(updatedUser);
+
+		return Response.ok(g.toJson(new SuccessResponse<>(new ChangeUserPwdResponse()))).build();
+	}
+
+	private class ChangeUserPwdResponse {
+		public String message;
+
+		public ChangeUserPwdResponse() {
+			this.message = "Password changed successfully";
 		}
 	}
 }
