@@ -54,9 +54,6 @@ public class LoginResource {
 	private static final String LOG_MESSAGE_LOGIN_ATTEMP = "Login attempt by user: ";
 	private static final String LOG_MESSAGE_LOGIN_SUCCESSFUL = "Login successful by user: ";
 	private static final String LOG_MESSAGE_WRONG_PASSWORD = "Wrong password for: ";
-	private static final String LOG_MESSAGE_UNKNOW_USER = "Failed login attempt for username: ";
-	private static final String USER_DOES_NOT_EXIST = "User does not exist.";
-
 	private static final String USER_PWD = "user_pwd";
 	private static final String USER_LOGIN_TIME = "user_login_time";
 
@@ -77,30 +74,30 @@ public class LoginResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response doLogin(LoginData data) {
-		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
+		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.input.username);
 
-		Key userKey = userKeyFactory.newKey(data.username);
+		Key userKey = userKeyFactory.newKey(data.input.username);
 
 		Transaction txn = datastore.newTransaction();
 		try {
 			Entity user = txn.get(userKey);
 			if (user == null) {
 				// Username does not exist
-				LOG.warning(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
-				return Response.status(9902)
-						.entity(USER_DOES_NOT_EXIST)
+				LOG.warning(LOG_MESSAGE_LOGIN_ATTEMP + data.input.username);
+				return Response.status(Status.NOT_FOUND)
+						.entity("USER_NOT_FOUND 9902 The username referred in the operation doesn’t exist in registered accounts")
 						.build();
 			}
 
-			String hashedPWD = (String) user.getString(USER_PWD);
-			if (hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
+			String hashedPWD = (String) user.getString("password");
+			if (hashedPWD.equals(DigestUtils.sha512Hex(data.input.password))) {
 				// Retrieve role from the stored user entity
 				Role role = Role.valueOf(user.getString("role"));
 
 				// Build and persist the token
-				AuthToken token = new AuthToken(data.username, role);
+				AuthToken token = new AuthToken(data.input.username, role);
 				Key tokenKey = datastore.newKeyFactory()
-						.addAncestors(PathElement.of("User", data.username))
+						.addAncestors(PathElement.of("User", data.input.username))
 						.setKind("AuthToken")
 						.newKey(token.tokenID);
 
@@ -108,8 +105,8 @@ public class LoginResource {
 						.set("token_id", token.tokenID)
 						.set("username", token.username)
 						.set("role", token.role.name())
-						.set("issuedAt", token.issuedAt)
-						.set("expiresAt", token.expiresAt)
+						.set("issuedAt", Timestamp.of(new java.util.Date(token.issuedAt)))
+						.set("expiresAt", Timestamp.of(new java.util.Date(token.expiresAt)))
 						.build();
 
 				// Batch operation
@@ -117,13 +114,16 @@ public class LoginResource {
 				txn.commit();
 
 				// Return token
-				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
+				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.input.username);
 				return Response
-						.ok(g.toJson(token.tokenID + token.username + token.role + token.issuedAt + token.expiresAt)).build();
+						.ok(g.toJson(token.tokenID + ", " + token.username + ", " + token.role + ", " + token.issuedAt + ", "
+								+ token.expiresAt))
+						.build();
 			} else {
 				// Wrong password
-				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
-				return Response.status(9900).entity(MESSAGE_INVALID_CREDENTIALS).build();
+				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.input.username);
+				return Response.status(Status.FORBIDDEN)
+						.entity("INVALID_CREDENTIALS 9900 The username-password pair is not valid").build();
 			}
 		} catch (Exception e) {
 			txn.rollback();
@@ -141,10 +141,10 @@ public class LoginResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getUserLoginLogsV1(LoginData data) {
-		Key userKey = userKeyFactory.newKey(data.username);
+		Key userKey = userKeyFactory.newKey(data.input.username);
 
 		Entity user = datastore.get(userKey);
-		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.password))) {
+		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.input.password))) {
 
 			// Get the date of yesterday
 			Calendar cal = Calendar.getInstance();
@@ -156,7 +156,7 @@ public class LoginResource {
 					.setFilter(
 							CompositeFilter.and(
 									PropertyFilter.hasAncestor(
-											datastore.newKeyFactory().setKind("User").newKey(data.username)),
+											datastore.newKeyFactory().setKind("User").newKey(data.input.username)),
 									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
 					.build();
 			QueryResults<Entity> logs = datastore.run(query);
@@ -178,10 +178,10 @@ public class LoginResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getLatestLogins(LoginData data) {
 
-		Key userKey = userKeyFactory.newKey(data.username);
+		Key userKey = userKeyFactory.newKey(data.input.username);
 
 		Entity user = datastore.get(userKey);
-		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.password))) {
+		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.input.password))) {
 
 			// Get the date of yesterday
 			Calendar cal = Calendar.getInstance();
@@ -193,7 +193,7 @@ public class LoginResource {
 					.setFilter(
 							CompositeFilter.and(
 									PropertyFilter.hasAncestor(
-											datastore.newKeyFactory().setKind("User").newKey(data.username)),
+											datastore.newKeyFactory().setKind("User").newKey(data.input.username)),
 									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
 					.setOrderBy(OrderBy.desc(USER_LOGIN_TIME))
 					.setLimit(3)
@@ -228,10 +228,10 @@ public class LoginResource {
 			return Response.status(Status.BAD_REQUEST).entity(MESSAGE_NEXT_PARAMETER_INVALID).build();
 		}
 
-		Key userKey = userKeyFactory.newKey(data.username);
+		Key userKey = userKeyFactory.newKey(data.input.username);
 
 		Entity user = datastore.get(userKey);
-		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.password))) {
+		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.input.password))) {
 
 			// Get the date of yesterday
 			Calendar cal = Calendar.getInstance();
@@ -243,7 +243,7 @@ public class LoginResource {
 					.setFilter(
 							CompositeFilter.and(
 									PropertyFilter.hasAncestor(
-											datastore.newKeyFactory().setKind("User").newKey(data.username)),
+											datastore.newKeyFactory().setKind("User").newKey(data.input.username)),
 									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
 					.setOrderBy(OrderBy.desc(USER_LOGIN_TIME))
 					.setLimit(3)

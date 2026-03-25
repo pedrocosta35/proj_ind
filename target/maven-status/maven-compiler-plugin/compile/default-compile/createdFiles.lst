@@ -1,5 +1,7 @@
 pt/unl/fct/di/adc/firstwebapp/resources/LoginResource.class
+pt/unl/fct/di/adc/firstwebapp/util/LoginData$Input.class
 pt/unl/fct/di/adc/firstwebapp/resources/ComputationResource.class
+pt/unl/fct/di/adc/firstwebapp/util/RegisterData$Input.class
 pt/unl/fct/di/adc/firstwebapp/util/Role.class
 pt/unl/fct/di/adc/firstwebapp/resources/RegisterResource.class
 pt/unl/fct/di/adc/firstwebapp/util/RegisterData.class

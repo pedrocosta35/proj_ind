@@ -37,32 +37,34 @@ public class RegisterResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response createAccount(RegisterData data) {
-		LOG.fine("Attempt to register user: " + data.username);
+		LOG.fine("Attempt to register user: " + data.input.username);
 
 		if (!data.validRegistration())
-			return Response.status(9906).entity("Invalid input.").build();
+			return Response.status(Status.BAD_REQUEST)
+					.entity("INVALID_INPUT 9906 The call is using input data not following the correct specification").build();
 
 		try {
 			Transaction txn = datastore.newTransaction();
-			Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
+			Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.input.username);
 			Entity user = txn.get(userKey);
 
 			if (user != null) {
 				txn.rollback();
-				return Response.status(9901).entity("User already exists.").build();
+				return Response.status(Status.CONFLICT)
+						.entity("USER_ALREADY_EXISTS 9901 Error in creating an account because the username already exists")
+						.build();
 			} else {
 				user = Entity.newBuilder(userKey)
-						.set("username", data.username)
-						.set("password", DigestUtils.sha512Hex(data.password))
-						.set("phone", data.phone)
-						.set("address", data.address)
-						.set("role", data.role.name())
-						.set("user_creation_time", Timestamp.now())
+						.set("username", data.input.username)
+						.set("password", DigestUtils.sha512Hex(data.input.password))
+						.set("phone", data.input.phone)
+						.set("address", data.input.address)
+						.set("role", data.input.role.name())
 						.build();
 				txn.put(user);
 				txn.commit();
-				LOG.info("User registered " + data.username);
-				return Response.ok(g.toJson(data.username + data.role)).build();
+				LOG.info("User registered " + data.input.username);
+				return Response.ok(g.toJson(data.input.username + ", " + data.input.role)).build();
 			}
 		} catch (Exception e) {
 			LOG.severe("Error registering user: " + e.getMessage());

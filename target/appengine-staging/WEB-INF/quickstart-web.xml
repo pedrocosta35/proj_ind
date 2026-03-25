@@ -236,14 +236,6 @@
     <tracking-mode>URL</tracking-mode>
     <tracking-mode>COOKIE</tracking-mode>
   </session-config>
-  <error-page origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):48">
-    <error-code>500</error-code>
-    <location>/error/500.html</location>
-  </error-page>
-  <error-page origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):49">
-    <error-code>404</error-code>
-    <location>/error/404.html</location>
-  </error-page>
   <mime-mapping>
     <extension>css</extension>
     <mime-type>text/css</mime-type>
