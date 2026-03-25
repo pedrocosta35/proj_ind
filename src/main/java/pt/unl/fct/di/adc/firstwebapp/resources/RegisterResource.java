@@ -20,7 +20,11 @@ import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Transaction;
 import com.google.cloud.datastore.DatastoreOptions;
 
+import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse;
+import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse.AppError;
 import pt.unl.fct.di.adc.firstwebapp.util.RegisterData;
+import pt.unl.fct.di.adc.firstwebapp.util.Role;
+import pt.unl.fct.di.adc.firstwebapp.util.SuccessResponse;
 
 @Path("/createaccount")
 public class RegisterResource {
@@ -41,7 +45,7 @@ public class RegisterResource {
 
 		if (!data.validRegistration())
 			return Response.status(Status.BAD_REQUEST)
-					.entity("INVALID_INPUT 9906 The call is using input data not following the correct specification").build();
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_INPUT))).build();
 
 		try {
 			Transaction txn = datastore.newTransaction();
@@ -51,7 +55,7 @@ public class RegisterResource {
 			if (user != null) {
 				txn.rollback();
 				return Response.status(Status.CONFLICT)
-						.entity("USER_ALREADY_EXISTS 9901 Error in creating an account because the username already exists")
+						.entity(g.toJson(new FailedResponse(AppError.USER_ALREADY_EXISTS)))
 						.build();
 			} else {
 				user = Entity.newBuilder(userKey)
@@ -64,7 +68,8 @@ public class RegisterResource {
 				txn.put(user);
 				txn.commit();
 				LOG.info("User registered " + data.input.username);
-				return Response.ok(g.toJson(data.input.username + ", " + data.input.role)).build();
+				return Response.ok(g.toJson(new SuccessResponse<>(new RegisterResponse(data.input.username, data.input.role))))
+						.build();
 			}
 		} catch (Exception e) {
 			LOG.severe("Error registering user: " + e.getMessage());
@@ -72,6 +77,16 @@ public class RegisterResource {
 		} finally {
 			// No need to rollback here, as we only have one transaction and it will be
 			// automatically rolled back if not committed.
+		}
+	}
+
+	public static class RegisterResponse {
+		public String username;
+		public Role role;
+
+		public RegisterResponse(String username, Role role) {
+			this.username = username;
+			this.role = role;
 		}
 	}
 }

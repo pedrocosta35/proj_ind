@@ -1,0 +1,33 @@
+package pt.unl.fct.di.adc.firstwebapp.util;
+
+public class FailedResponse {
+  public String status;
+  public String data;
+
+  public enum AppError {
+    INVALID_CREDENTIALS(9900, "The username-password pair is not valid"),
+    USER_ALREADY_EXISTS(9901, "Error in creating an account because the username already exists"),
+    USER_NOT_FOUND(9902, "The username referred in the operation doesn't exist in registered accounts"),
+    INVALID_TOKEN(9903, "The operation is called with an invalid token (wrong format for example)"),
+    TOKEN_EXPIRED(9904, "The operation is called with a token that is expired"),
+    UNAUTHORIZED(9905, "The operation is not allowed for the user role"),
+    INVALID_INPUT(9906, "The call is using input data not following the correct specification"),
+    FORBIDDEN(9907, "The operation generated a forbidden error by other reason");
+
+    public final int code;
+    public final String message;
+
+    AppError(int code, String message) {
+      this.code = code;
+      this.message = message;
+    }
+  }
+
+  public FailedResponse() {
+  }
+
+  public FailedResponse(AppError error) {
+    this.status = String.valueOf(error.code);
+    this.data = error.message;
+  }
+}

@@ -24,8 +24,11 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.servlet.http.HttpServletRequest;
 
 import pt.unl.fct.di.adc.firstwebapp.util.AuthToken;
+import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse;
 import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.adc.firstwebapp.util.Role;
+import pt.unl.fct.di.adc.firstwebapp.util.SuccessResponse;
+import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse.AppError;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.Key;
@@ -85,7 +88,7 @@ public class LoginResource {
 				// Username does not exist
 				LOG.warning(LOG_MESSAGE_LOGIN_ATTEMP + data.input.username);
 				return Response.status(Status.NOT_FOUND)
-						.entity("USER_NOT_FOUND 9902 The username referred in the operation doesn’t exist in registered accounts")
+						.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
 						.build();
 			}
 
@@ -116,14 +119,13 @@ public class LoginResource {
 				// Return token
 				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.input.username);
 				return Response
-						.ok(g.toJson(token.tokenID + ", " + token.username + ", " + token.role + ", " + token.issuedAt + ", "
-								+ token.expiresAt))
+						.ok(g.toJson(new SuccessResponse<>(new loginResponse(token))))
 						.build();
 			} else {
 				// Wrong password
 				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.input.username);
 				return Response.status(Status.FORBIDDEN)
-						.entity("INVALID_CREDENTIALS 9900 The username-password pair is not valid").build();
+						.entity(g.toJson(new FailedResponse(AppError.INVALID_CREDENTIALS))).build();
 			}
 		} catch (Exception e) {
 			txn.rollback();
@@ -133,6 +135,14 @@ public class LoginResource {
 			if (txn.isActive()) {
 				txn.rollback();
 			}
+		}
+	}
+
+	private class loginResponse {
+		public AuthToken token;
+
+		public loginResponse(AuthToken token) {
+			this.token = token;
 		}
 	}
 
