@@ -27,6 +27,7 @@ import pt.unl.fct.di.adc.firstwebapp.util.AuthToken;
 import pt.unl.fct.di.adc.firstwebapp.util.DeleteUserData;
 import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse;
 import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
+import pt.unl.fct.di.adc.firstwebapp.util.ModUserData;
 import pt.unl.fct.di.adc.firstwebapp.util.Role;
 import pt.unl.fct.di.adc.firstwebapp.util.ShowUsersData;
 import pt.unl.fct.di.adc.firstwebapp.util.SuccessResponse;
@@ -184,6 +185,7 @@ public class PostRegisterResource {
 		datastore.delete(tokenKey);
 	}
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// checks if token is valid first and then if user has permission as it
 	// is in the exercise
 	private Response checkToken(Entity tokenEntity, Role... allowedRoles) {
@@ -211,6 +213,7 @@ public class PostRegisterResource {
 				.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
 				.build();
 	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	private class ShowUsersResponse {
 		public List<UsersData> users;
@@ -275,4 +278,89 @@ public class PostRegisterResource {
 			this.message = "Account deleted successfully";
 		}
 	}
+
+	@POST
+	@Path("/modaccount")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response modAccount(ModUserData data) {
+		if (data == null || data.token == null || data.token.tokenID == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
+					.build();
+		}
+		Key tokenKey = datastore.newKeyFactory()
+				.addAncestors(PathElement.of("User", data.token.username))
+				.setKind("AuthToken")
+				.newKey(data.token.tokenID);
+
+		Entity tokenEntity = datastore.get(tokenKey);
+
+		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER, Role.USER);
+		if (tokenCheck != null) {
+			return tokenCheck; // stops here if token is expired
+		}
+
+		Entity user = datastore.get(userKeyFactory.newKey(data.input.username));
+		if (user == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
+					.build();
+		}
+
+		if (tokenEntity.getString("role").equals(Role.USER.name())
+				&& !data.input.username.equals(tokenEntity.getString("username"))) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
+					.build();
+		}
+
+		Role tokenRole = Role.valueOf(tokenEntity.getString("role"));
+		Role targetRole = Role.valueOf(user.getString("role"));
+
+		// users can only modify themselves
+		if (tokenRole == Role.USER && !data.input.username.equals(tokenEntity.getString("username"))) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
+					.build();
+		}
+
+		// b officers can only modify users and themselfs
+		if (tokenRole == Role.BOFFICER && targetRole != Role.USER
+				&& !data.input.username.equals(tokenEntity.getString("username"))) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
+					.build();
+		}
+
+		Entity.Builder userBuilder = Entity.newBuilder(user);
+
+		if (data.input.attributes.phone != null && !data.input.attributes.phone.isBlank()) {
+			userBuilder.set("phone", data.input.attributes.phone);
+		} else {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_INPUT)))
+					.build();
+		}
+
+		if (data.input.attributes.address != null && !data.input.attributes.address.isBlank()) {
+			userBuilder.set("address", data.input.attributes.address);
+		} else {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_INPUT)))
+					.build();
+		}
+
+		datastore.update(userBuilder.build());
+		return Response.ok(g.toJson(new SuccessResponse<>(new ModUserResponse()))).build();
+	}
+
+	private class ModUserResponse {
+		public String message;
+
+		public ModUserResponse() {
+			this.message = "Updated successfully";
+		}
+	}
+
 }
