@@ -27,6 +27,7 @@ import pt.unl.fct.di.adc.firstwebapp.util.AuthToken;
 import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse;
 import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.adc.firstwebapp.util.Role;
+import pt.unl.fct.di.adc.firstwebapp.util.ShowUsersData;
 import pt.unl.fct.di.adc.firstwebapp.util.SuccessResponse;
 import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse.AppError;
 
@@ -76,7 +77,7 @@ public class LoginResource {
 	@Path("/login")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response doLogin(LoginData data) {
+	public Response login(LoginData data) {
 		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.input.username);
 
 		Key userKey = userKeyFactory.newKey(data.input.username);
@@ -147,129 +148,53 @@ public class LoginResource {
 	}
 
 	@POST
-	@Path("/user/login-logs/v1")
+	@Path("/showusers")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getUserLoginLogsV1(LoginData data) {
-		Key userKey = userKeyFactory.newKey(data.input.username);
-
-		Entity user = datastore.get(userKey);
-		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.input.password))) {
-
-			// Get the date of yesterday
-			Calendar cal = Calendar.getInstance();
-			cal.add(Calendar.DATE, -1);
-			Timestamp yesterday = Timestamp.of(cal.getTime());
-
-			Query<Entity> query = Query.newEntityQueryBuilder()
-					.setKind("UserLog")
-					.setFilter(
-							CompositeFilter.and(
-									PropertyFilter.hasAncestor(
-											datastore.newKeyFactory().setKind("User").newKey(data.input.username)),
-									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
+	public Response showUsers(ShowUsersData data) {
+		if (data == null || data.token == null || data.token.tokenID == null) {
+			return Response.status(Status.BAD_REQUEST)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
-			QueryResults<Entity> logs = datastore.run(query);
-
-			List<Date> loginDates = new ArrayList<Date>();
-			logs.forEachRemaining(userlog -> {
-				loginDates.add(userlog.getTimestamp(USER_LOGIN_TIME).toDate());
-			});
-
-			return Response.ok(g.toJson(loginDates)).build();
 		}
-		return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_CREDENTIALS)
-				.build();
+		Key tokenKey = datastore.newKeyFactory()
+				.addAncestors(PathElement.of("User", data.token.username))
+				.setKind("AuthToken")
+				.newKey(data.token.tokenID);
+
+		Entity tokenEntity = datastore.get(tokenKey);
+		if (tokenEntity == null) {
+			return Response.status(Status.BAD_REQUEST)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
+					.build();
+		}
+
+		if (data.hasTokenExpired()) {
+			return Response.status(Status.UNAUTHORIZED)
+					.entity(g.toJson(new FailedResponse(AppError.TOKEN_EXPIRED)))
+					.build();
+		}
+		if (!data.hasPermission(Role.ADMIN, Role.BOFFICER)) {
+			return Response.status(Status.UNAUTHORIZED)
+					.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
+					.build();
+		}
+		Query<Entity> query = Query.newEntityQueryBuilder().setKind("User").build();
+		QueryResults<Entity> users = datastore.run(query);
+
+		List<Entity> userList = new ArrayList<>();
+		while (users.hasNext()) {
+			Entity user = users.next();
+			userList.add(user);
+		}
+		return Response.ok(g.toJson(new SuccessResponse<>(new showUsersResponse(userList)))).build();
 	}
 
-	@POST
-	@Path("/user/login-logs/v2")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response getLatestLogins(LoginData data) {
+	private class showUsersResponse {
+		public List<Entity> users;
 
-		Key userKey = userKeyFactory.newKey(data.input.username);
-
-		Entity user = datastore.get(userKey);
-		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.input.password))) {
-
-			// Get the date of yesterday
-			Calendar cal = Calendar.getInstance();
-			cal.add(Calendar.DATE, -1);
-			Timestamp yesterday = Timestamp.of(cal.getTime());
-
-			Query<Entity> query = Query.newEntityQueryBuilder()
-					.setKind("UserLog")
-					.setFilter(
-							CompositeFilter.and(
-									PropertyFilter.hasAncestor(
-											datastore.newKeyFactory().setKind("User").newKey(data.input.username)),
-									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
-					.setOrderBy(OrderBy.desc(USER_LOGIN_TIME))
-					.setLimit(3)
-					.build();
-			QueryResults<Entity> logs = datastore.run(query);
-
-			List<Date> loginDates = new ArrayList<Date>();
-			logs.forEachRemaining(userlog -> {
-				loginDates.add(userlog.getTimestamp(USER_LOGIN_TIME).toDate());
-			});
-
-			return Response.ok(g.toJson(loginDates)).build();
+		public showUsersResponse(List<Entity> users) {
+			this.users = users;
 		}
-		return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_CREDENTIALS)
-				.build();
 	}
-
-	@POST
-	@Path("/user/login-logs/pagination")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response getLatestLogins(@QueryParam("next") String nextParam, LoginData data) {
-
-		int next;
-
-		// Checking for valid request parameter values
-		try {
-			next = Integer.parseInt(nextParam);
-			if (next < 0)
-				return Response.status(Status.BAD_REQUEST).entity(MESSAGE_NEXT_PARAMETER_INVALID).build();
-		} catch (NumberFormatException e) {
-			return Response.status(Status.BAD_REQUEST).entity(MESSAGE_NEXT_PARAMETER_INVALID).build();
-		}
-
-		Key userKey = userKeyFactory.newKey(data.input.username);
-
-		Entity user = datastore.get(userKey);
-		if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.input.password))) {
-
-			// Get the date of yesterday
-			Calendar cal = Calendar.getInstance();
-			cal.add(Calendar.DATE, -1);
-			Timestamp yesterday = Timestamp.of(cal.getTime());
-
-			Query<Entity> query = Query.newEntityQueryBuilder()
-					.setKind("UserLog")
-					.setFilter(
-							CompositeFilter.and(
-									PropertyFilter.hasAncestor(
-											datastore.newKeyFactory().setKind("User").newKey(data.input.username)),
-									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
-					.setOrderBy(OrderBy.desc(USER_LOGIN_TIME))
-					.setLimit(3)
-					.setOffset(next)
-					.build();
-			QueryResults<Entity> logs = datastore.run(query);
-
-			List<Date> loginDates = new ArrayList<Date>();
-			logs.forEachRemaining(userlog -> {
-				loginDates.add(userlog.getTimestamp(USER_LOGIN_TIME).toDate());
-			});
-
-			return Response.ok(g.toJson(loginDates)).build();
-		}
-		return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_CREDENTIALS)
-				.build();
-	}
-
 }

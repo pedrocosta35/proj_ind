@@ -23,4 +23,18 @@ public class AuthToken {
 		this.role = role;
 	}
 
+	public boolean isExpired() {
+		return System.currentTimeMillis() > expiresAt;
+	}
+
+	public boolean hasPermission(Role... allowedRoles) { // maked in a secure way even thought in the exercise we check
+																												// role after expiration
+		for (Role allowedRole : allowedRoles) {
+			if (this.role == allowedRole) {
+				return !isExpired();
+			}
+		}
+		return false;
+	}
+
 }
