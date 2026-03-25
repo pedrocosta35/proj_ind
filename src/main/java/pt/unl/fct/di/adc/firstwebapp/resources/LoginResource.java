@@ -43,7 +43,6 @@ import com.google.cloud.datastore.StructuredQuery.CompositeFilter;
 
 import com.google.gson.Gson;
 
-@Path("/login")
 @Produces(MediaType.APPLICATION_JSON + ";charset=utf-8")
 public class LoginResource {
 
@@ -54,6 +53,7 @@ public class LoginResource {
 	private static final String LOG_MESSAGE_LOGIN_SUCCESSFUL = "Login successful by user: ";
 	private static final String LOG_MESSAGE_WRONG_PASSWORD = "Wrong password for: ";
 	private static final String LOG_MESSAGE_UNKNOW_USER = "Failed login attempt for username: ";
+	private static final String USER_DOES_NOT_EXIST = "User does not exist.";
 
 	private static final String USER_PWD = "user_pwd";
 	private static final String USER_LOGIN_TIME = "user_login_time";
@@ -71,18 +71,17 @@ public class LoginResource {
 	} // Nothing to be done here
 
 	@POST
+	@Path("/login")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response doLoginV2(LoginData data,
-			@Context HttpServletRequest request,
-			@Context HttpHeaders headers) {
+	public Response doLogin(LoginData data) {
 		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 
 		Key userKey = userKeyFactory.newKey(data.username);
 		Key ctrsKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.username))
-				.setKind("UserStats")
-				.newKey("counters");
+				.setKind("UserToken")
+				.newKey("token");
 		// Generate automatically a key
 		Key logKey = datastore.allocateId(
 				datastore.newKeyFactory()
@@ -95,8 +94,8 @@ public class LoginResource {
 			if (user == null) {
 				// Username does not exist
 				LOG.warning(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
-				return Response.status(Status.FORBIDDEN)
-						.entity(MESSAGE_INVALID_CREDENTIALS)
+				return Response.status(9902)
+						.entity(USER_DOES_NOT_EXIST)
 						.build();
 			}
 
@@ -115,34 +114,52 @@ public class LoginResource {
 			if (hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
 				// Login successful
 				// Construct the logs
-				String cityLatLong = headers.getHeaderString("X-AppEngine-CityLatLong");
-				Entity log = Entity.newBuilder(logKey)
-						.set("user_login_ip", request.getRemoteAddr())
-						.set("user_login_host", request.getRemoteHost())
-						.set("user_login_latlon", cityLatLong != null
-								? StringValue.newBuilder(cityLatLong).setExcludeFromIndexes(true).build()
-								: StringValue.newBuilder("").setExcludeFromIndexes(true).build())
-						.set("user_login_city", headers.getHeaderString("X-AppEngine-City"))
-						.set("user_login_country", headers.getHeaderString("X-AppEngine-Country"))
-						.set("user_login_time", Timestamp.now())
-						.build();
+				// String cityLatLong = headers.getHeaderString("X-AppEngine-CityLatLong");
+				// Entity log = Entity.newBuilder(logKey)
+				// 		.set("user_login_ip", request.getRemoteAddr())
+				// 		.set("user_login_host", request.getRemoteHost())
+				// 		.set("user_login_latlon", cityLatLong != null
+				// 				? StringValue.newBuilder(cityLatLong).setExcludeFromIndexes(true).build()
+				// 				: StringValue.newBuilder("").setExcludeFromIndexes(true).build())
+				// 		.set("user_login_city", headers.getHeaderString("X-AppEngine-City"))
+				// 		.set("user_login_country", headers.getHeaderString("X-AppEngine-Country"))
+				// 		.set("user_login_time", Timestamp.now())
+				// 		.build();
 
 				// Get the user statistics and updates it
 				// Copying information every time a user logins may not be a good solution
 				// (why?)
-				Entity ustats = Entity.newBuilder(ctrsKey)
-						.set("user_stats_logins", stats.getLong("user_stats_logins") + 1)
-						.set("user_stats_failed", 0L)
-						.set("user_first_login", stats.getTimestamp("user_first_login"))
-						.set("user_last_login", Timestamp.now())
-						.build();
+				// Entity ustats = Entity.newBuilder(ctrsKey)
+				// 		.set("user_stats_logins", stats.getLong("user_stats_logins") + 1)
+				// 		.set("user_stats_failed", 0L)
+				// 		.set("user_first_login", stats.getTimestamp("user_first_login"))
+				// 		.set("user_last_login", Timestamp.now())
+				// 		.build();
+
+						// Retrieve role from the stored user entity
+            Role role = Role.valueOf(user.getString("user_role"));
+
+            // Build and persist the token
+            AuthToken token = new AuthToken(data.username, role);
+            Key tokenKey = datastore.newKeyFactory()
+                    .addAncestors(PathElement.of("User", data.username))
+                    .setKind("AuthToken")
+                    .newKey(token.tokenID);
+
+            Entity tokenEntity = Entity.newBuilder(tokenKey)
+                    .set("token_id",       token.tokenID)
+                    .set("username",       token.username)
+                    .set("role",           token.role.name())
+                    .set("creation_date",  token.creationData)
+                    .set("expiration_date",token.expirationData)
+                    .build();
 
 				// Batch operation
 				txn.put(log, ustats);
 				txn.commit();
 
 				// Return token
-				AuthToken token = new AuthToken(data.username);
+				AuthToken token = new AuthToken(data.username,);
 				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
 				return Response.ok(g.toJson(token)).build();
 			} else {
@@ -159,7 +176,7 @@ public class LoginResource {
 				txn.put(ustats);
 				txn.commit();
 				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
-				return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_CREDENTIALS).build();
+				return Response.status(9900).entity(MESSAGE_INVALID_CREDENTIALS).build();
 			}
 		} catch (Exception e) {
 			txn.rollback();
