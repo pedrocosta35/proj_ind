@@ -4,7 +4,7 @@ import java.util.UUID;
 
 public class AuthToken {
 
-	public static final long EXPIRATION_TIME = 1000 * 60 * 60 * 2; // 2h
+	public static final long EXPIRATION_TIME = 1000 * 60 * 15; // 15 min
 
 	public String username;
 	public String tokenID;
@@ -22,19 +22,4 @@ public class AuthToken {
 		this.expiresAt = this.issuedAt + EXPIRATION_TIME;
 		this.role = role;
 	}
-
-	public boolean isExpired() {
-		return System.currentTimeMillis() > expiresAt;
-	}
-
-	public boolean hasPermission(Role... allowedRoles) { // maked in a secure way even thought in the exercise we check
-																												// role after expiration
-		for (Role allowedRole : allowedRoles) {
-			if (this.role == allowedRole) {
-				return !isExpired();
-			}
-		}
-		return false;
-	}
-
 }

@@ -15,13 +15,4 @@ public class ShowUsersData {
     this.input = new Input();
     this.token = token;
   }
-
-  public boolean hasTokenExpired() {
-    return token != null && token.isExpired();
-  }
-
-  public boolean hasPermission(Role... allowedRoles) {
-    return token != null && token.hasPermission(allowedRoles);
-  }
-
 }

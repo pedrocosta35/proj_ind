@@ -29,6 +29,7 @@ import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.adc.firstwebapp.util.Role;
 import pt.unl.fct.di.adc.firstwebapp.util.ShowUsersData;
 import pt.unl.fct.di.adc.firstwebapp.util.SuccessResponse;
+import pt.unl.fct.di.adc.firstwebapp.util.UsersData;
 import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse.AppError;
 
 import com.google.cloud.Timestamp;
@@ -88,7 +89,7 @@ public class LoginResource {
 			if (user == null) {
 				// Username does not exist
 				LOG.warning(LOG_MESSAGE_LOGIN_ATTEMP + data.input.username);
-				return Response.status(Status.NOT_FOUND)
+				return Response.status(Status.OK)
 						.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
 						.build();
 			}
@@ -109,8 +110,8 @@ public class LoginResource {
 						.set("token_id", token.tokenID)
 						.set("username", token.username)
 						.set("role", token.role.name())
-						.set("issuedAt", Timestamp.of(new java.util.Date(token.issuedAt)))
-						.set("expiresAt", Timestamp.of(new java.util.Date(token.expiresAt)))
+						.set("issuedAt", token.issuedAt)
+						.set("expiresAt", token.expiresAt)
 						.build();
 
 				// Batch operation
@@ -125,7 +126,7 @@ public class LoginResource {
 			} else {
 				// Wrong password
 				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.input.username);
-				return Response.status(Status.FORBIDDEN)
+				return Response.status(Status.OK)
 						.entity(g.toJson(new FailedResponse(AppError.INVALID_CREDENTIALS))).build();
 			}
 		} catch (Exception e) {
@@ -149,11 +150,11 @@ public class LoginResource {
 
 	@POST
 	@Path("/showusers")
-	@Consumes(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON) // dar 200 sempre em erros
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response showUsers(ShowUsersData data) {
 		if (data == null || data.token == null || data.token.tokenID == null) {
-			return Response.status(Status.BAD_REQUEST)
+			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
 		}
@@ -163,38 +164,68 @@ public class LoginResource {
 				.newKey(data.token.tokenID);
 
 		Entity tokenEntity = datastore.get(tokenKey);
-		if (tokenEntity == null) {
-			return Response.status(Status.BAD_REQUEST)
-					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
-					.build();
+		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER);
+		if (tokenCheck != null) {
+			return tokenCheck; // stops here if token is invalid
 		}
 
-		if (data.hasTokenExpired()) {
-			return Response.status(Status.UNAUTHORIZED)
-					.entity(g.toJson(new FailedResponse(AppError.TOKEN_EXPIRED)))
-					.build();
-		}
-		if (!data.hasPermission(Role.ADMIN, Role.BOFFICER)) {
-			return Response.status(Status.UNAUTHORIZED)
-					.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
-					.build();
-		}
 		Query<Entity> query = Query.newEntityQueryBuilder().setKind("User").build();
 		QueryResults<Entity> users = datastore.run(query);
 
-		List<Entity> userList = new ArrayList<>();
+		List<UsersData> userList = new ArrayList<>();
 		while (users.hasNext()) {
-			Entity user = users.next();
-			userList.add(user);
+			userList.add(new UsersData(users.next()));
 		}
 		return Response.ok(g.toJson(new SuccessResponse<>(new showUsersResponse(userList)))).build();
 	}
 
-	private class showUsersResponse {
-		public List<Entity> users;
+	private void removeToken(String username, String tokenID) {
+		Key tokenKey = datastore.newKeyFactory()
+				.addAncestors(PathElement.of("User", username))
+				.setKind("AuthToken")
+				.newKey(tokenID);
 
-		public showUsersResponse(List<Entity> users) {
+		datastore.delete(tokenKey);
+	}
+
+	// checks if token is valid first and then if user has permission as it
+	// is in the exercise
+	private Response checkToken(Entity tokenEntity, Role... allowedRoles) {
+		if (tokenEntity == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
+					.build();
+		}
+
+		long expiresAt = tokenEntity.getLong("expiresAt");
+		if (System.currentTimeMillis() > expiresAt) {
+			removeToken(tokenEntity.getString("username"), tokenEntity.getString("token_id"));
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.TOKEN_EXPIRED)))
+					.build();
+		}
+
+		Role role = Role.valueOf(tokenEntity.getString("role"));
+		for (Role allowedRole : allowedRoles) {
+			if (role == allowedRole) {
+				return null; // token is valid and has permission
+			}
+		}
+		return Response.status(Status.OK)
+				.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
+				.build();
+	}
+
+	private class showUsersResponse {
+		public List<UsersData> users;
+
+		public showUsersResponse(List<UsersData> users) {
 			this.users = users;
 		}
 	}
+
+	// @POST
+	// @Path("/deleteaccount")
+	// @Consumes(MediaType.APPLICATION_JSON) // dar 200 sempre em erros
+	// @Produces(MediaType.APPLICATION_JSON)
 }

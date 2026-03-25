@@ -44,7 +44,7 @@ public class RegisterResource {
 		LOG.fine("Attempt to register user: " + data.input.username);
 
 		if (!data.validRegistration())
-			return Response.status(Status.BAD_REQUEST)
+			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_INPUT))).build();
 
 		try {
@@ -54,7 +54,7 @@ public class RegisterResource {
 
 			if (user != null) {
 				txn.rollback();
-				return Response.status(Status.CONFLICT)
+				return Response.status(Status.OK)
 						.entity(g.toJson(new FailedResponse(AppError.USER_ALREADY_EXISTS)))
 						.build();
 			} else {

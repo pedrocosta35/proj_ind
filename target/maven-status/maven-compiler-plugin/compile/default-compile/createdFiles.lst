@@ -1,8 +1,8 @@
-pt/unl/fct/di/adc/firstwebapp/util/TokenValidator.class
 pt/unl/fct/di/adc/firstwebapp/resources/LoginResource$showUsersResponse.class
 pt/unl/fct/di/adc/firstwebapp/resources/LoginResource$loginResponse.class
 pt/unl/fct/di/adc/firstwebapp/util/LoginData$Input.class
 pt/unl/fct/di/adc/firstwebapp/util/ShowUsersData$Input.class
+pt/unl/fct/di/adc/firstwebapp/util/UsersData.class
 pt/unl/fct/di/adc/firstwebapp/util/FailedResponse.class
 pt/unl/fct/di/adc/firstwebapp/resources/RegisterResource$RegisterResponse.class
 pt/unl/fct/di/adc/firstwebapp/util/SuccessResponse.class
