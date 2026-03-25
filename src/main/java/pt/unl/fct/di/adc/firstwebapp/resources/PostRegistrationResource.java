@@ -24,7 +24,7 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.servlet.http.HttpServletRequest;
 
 import pt.unl.fct.di.adc.firstwebapp.util.AuthToken;
-import pt.unl.fct.di.adc.firstwebapp.util.DeleteUserData;
+import pt.unl.fct.di.adc.firstwebapp.util.OneUserOpsData;
 import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse;
 import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.adc.firstwebapp.util.ModUserData;
@@ -228,7 +228,7 @@ public class PostRegistrationResource {
 	@Path("/deleteaccount")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response deleteAccount(DeleteUserData data) {
+	public Response deleteAccount(OneUserOpsData data) {
 		if (data == null || data.token == null || data.token.tokenID == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
@@ -410,6 +410,48 @@ public class PostRegistrationResource {
 
 		public ShowSessionsResponse(List<SessionsData> activeSessions) {
 			this.sessions = activeSessions;
+		}
+	}
+
+	@POST
+	@Path("/showuserrole")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response showUserRole(OneUserOpsData data) {
+		if (data == null || data.token == null || data.token.tokenID == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
+					.build();
+		}
+		Key tokenKey = datastore.newKeyFactory()
+				.addAncestors(PathElement.of("User", data.token.username))
+				.setKind("AuthToken")
+				.newKey(data.token.tokenID);
+
+		Entity tokenEntity = datastore.get(tokenKey);
+		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER);
+		if (tokenCheck != null) {
+			return tokenCheck; // stops here if token is invalid
+		}
+
+		Entity user = datastore.get(userKeyFactory.newKey(data.input.username));
+		if (user == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
+					.build();
+		}
+
+		String role = user.getString("role");
+		return Response.ok(g.toJson(new SuccessResponse<>(new ShowUserRoleResponse(data.input.username, role)))).build();
+	}
+
+	private class ShowUserRoleResponse {
+		public String username;
+		public String role;
+
+		public ShowUserRoleResponse(String username, String role) {
+			this.username = username;
+			this.role = role;
 		}
 	}
 }
