@@ -24,6 +24,7 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.servlet.http.HttpServletRequest;
 
 import pt.unl.fct.di.adc.firstwebapp.util.AuthToken;
+import pt.unl.fct.di.adc.firstwebapp.util.ChangeUserData;
 import pt.unl.fct.di.adc.firstwebapp.util.OneUserOpsData;
 import pt.unl.fct.di.adc.firstwebapp.util.FailedResponse;
 import pt.unl.fct.di.adc.firstwebapp.util.LoginData;
@@ -44,6 +45,7 @@ import com.google.cloud.datastore.KeyFactory;
 import com.google.cloud.datastore.PathElement;
 import com.google.cloud.datastore.StringValue;
 import com.google.cloud.datastore.Transaction;
+import com.google.cloud.datastore.Value;
 import com.google.cloud.datastore.QueryResults;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.StructuredQuery.OrderBy;
@@ -452,6 +454,67 @@ public class PostRegistrationResource {
 		public ShowUserRoleResponse(String username, String role) {
 			this.username = username;
 			this.role = role;
+		}
+	}
+
+	@POST
+	@Path("/changeuserrole")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response changeUserRole(ChangeUserData data) {
+		if (data == null || data.input.newRole == null || data.token == null || data.token.tokenID == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
+					.build();
+		}
+		Key tokenKey = datastore.newKeyFactory()
+				.addAncestors(PathElement.of("User", data.token.username))
+				.setKind("AuthToken")
+				.newKey(data.token.tokenID);
+
+		Entity tokenEntity = datastore.get(tokenKey);
+		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN);
+		if (tokenCheck != null) {
+			return tokenCheck; // stops here if token is invalid
+		}
+
+		Entity user = datastore.get(userKeyFactory.newKey(data.input.username));
+		if (user == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
+					.build();
+		}
+
+		Role newRole = data.input.newRole;
+
+		Entity updatedUser = Entity.newBuilder(user)
+				.set("role", newRole.name())
+				.build();
+
+		datastore.update(updatedUser);
+
+		Query<Entity> tokenQuery = Query.newEntityQueryBuilder() // i dont know if a user can haver multiple tokens but just
+																															// in case update them all
+				.setKind("AuthToken")
+				.setFilter(PropertyFilter.hasAncestor(userKeyFactory.newKey(data.input.username)))
+				.build();
+		QueryResults<Entity> tokens = datastore.run(tokenQuery);
+		if (tokens.hasNext()) {
+			Entity token = tokens.next();
+			Entity updatedToken = Entity.newBuilder(token)
+					.set("role", newRole.name())
+					.build();
+			datastore.update(updatedToken);
+		}
+
+		return Response.ok(g.toJson(new SuccessResponse<>(new ChangeUserRoleResponse()))).build();
+	}
+
+	private class ChangeUserRoleResponse {
+		public String message;
+
+		public ChangeUserRoleResponse() {
+			this.message = "Role updated successfully";
 		}
 	}
 }
