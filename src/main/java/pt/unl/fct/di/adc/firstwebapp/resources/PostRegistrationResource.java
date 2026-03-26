@@ -604,7 +604,7 @@ public class PostRegistrationResource {
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER, Role.USER);
 		if (tokenCheck != null) {
-			return tokenCheck; // stops here if token is invalid
+			return tokenCheck; // stops here if token is expired
 		}
 
 		if (tokenEntity.getString("role").equals(Role.ADMIN.name())) {
