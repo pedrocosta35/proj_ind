@@ -67,7 +67,10 @@ public class PostRegistrationResource {
 	 * Logger Object
 	 */
 	private static final Logger LOG = Logger.getLogger(PostRegistrationResource.class.getName());
-	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+	private static final Datastore datastore = DatastoreOptions.newBuilder()
+			.setProjectId("fourth-epigram-489017-d6")
+			.build()
+			.getService();
 	private static final KeyFactory userKeyFactory = datastore.newKeyFactory().setKind("User");
 
 	private final Gson g = new Gson();

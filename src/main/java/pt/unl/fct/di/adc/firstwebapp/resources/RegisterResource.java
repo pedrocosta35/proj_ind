@@ -30,7 +30,10 @@ import pt.unl.fct.di.adc.firstwebapp.util.SuccessResponse;
 public class RegisterResource {
 
 	private static final Logger LOG = Logger.getLogger(RegisterResource.class.getName());
-	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+	private static final Datastore datastore = DatastoreOptions.newBuilder()
+			.setProjectId("fourth-epigram-489017-d6")
+			.build()
+			.getService();
 
 	private final Gson g = new Gson();
 
