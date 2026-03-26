@@ -398,9 +398,7 @@ public class PostRegistrationResource {
 		while (tokens.hasNext()) {
 			Entity token = tokens.next();
 			if (now <= token.getLong("expiresAt")) {
-				activeSessions.add(new SessionsData(token));
-			} else {
-				datastore.delete(token.getKey());
+				activeSessions.add(new SessionsData(token)); // not deleting expired tokens here, just not showing them
 			}
 		}
 
@@ -582,6 +580,65 @@ public class PostRegistrationResource {
 
 		public ChangeUserPwdResponse() {
 			this.message = "Password changed successfully";
+		}
+	}
+
+	@POST
+	@Path("/logout")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response logout(OneUserOpsData data) {
+		if (data == null || data.token == null || data.token.tokenID == null) {
+			return Response.status(Status.OK)
+					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
+					.build();
+		}
+		Key tokenKey = datastore.newKeyFactory()
+				.addAncestors(PathElement.of("User", data.token.username))
+				.setKind("AuthToken")
+				.newKey(data.token.tokenID);
+
+		Entity tokenEntity = datastore.get(tokenKey);
+		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER, Role.USER);
+		if (tokenCheck != null) {
+			return tokenCheck; // stops here if token is invalid
+		}
+
+		if (tokenEntity.getString("role").equals(Role.ADMIN.name())) {
+			// Admin logs out a specific user
+			Entity targetUser = datastore.get(userKeyFactory.newKey(data.input.username));
+			if (targetUser == null) {
+				return Response.status(Status.OK)
+						.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
+						.build();
+			}
+			// Delete the token of the target user
+			Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+					.setKind("AuthToken")
+					.setFilter(PropertyFilter.hasAncestor(userKeyFactory.newKey(data.input.username)))
+					.build();
+			QueryResults<Entity> tokens = datastore.run(tokenQuery);
+			if (tokens.hasNext()) {
+				Entity targetToken = tokens.next();
+				removeToken(targetToken.getString("username"), targetToken.getString("tokenId"));
+			}
+		} else {
+			// Non-admin can only logout themselves
+			if (!tokenEntity.getString("username").equals(data.input.username)) {
+				return Response.status(Status.OK)
+						.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
+						.build();
+			}
+			removeToken(tokenEntity.getString("username"), tokenEntity.getString("tokenId"));
+		}
+		return Response.ok(g.toJson(new SuccessResponse<>(new LogoutResponse()))).build();
+	}
+
+	private class LogoutResponse {
+		public String message;
+
+		public LogoutResponse() {
+			this.message = "Logout successful";
 		}
 	}
 }
