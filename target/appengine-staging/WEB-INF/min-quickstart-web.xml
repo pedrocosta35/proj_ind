@@ -40,9 +40,9 @@
             
         <servlet-name>MainServices</servlet-name>
             
-        <servlet-class origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):0">org.glassfish.jersey.servlet.ServletContainer</servlet-class>
+        <servlet-class origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind-1/target/appengine-staging/WEB-INF/web.xml):0">org.glassfish.jersey.servlet.ServletContainer</servlet-class>
             
-        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):1">
+        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind-1/target/appengine-staging/WEB-INF/web.xml):1">
                   
             <param-name>jersey.config.server.tracing.type</param-name>
                   
@@ -50,7 +50,7 @@
                 
         </init-param>
             
-        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):2">
+        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind-1/target/appengine-staging/WEB-INF/web.xml):2">
                   
             <param-name>jersey.config.server.provider.scanning.recursive</param-name>
                   
@@ -58,7 +58,7 @@
                 
         </init-param>
             
-        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):3">
+        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind-1/target/appengine-staging/WEB-INF/web.xml):3">
                   
             <param-name>jersey.config.server.provider.packages</param-name>
                   
@@ -66,7 +66,7 @@
                 
         </init-param>
             
-        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):4">
+        <init-param origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind-1/target/appengine-staging/WEB-INF/web.xml):4">
                   
             <param-name>jersey.config.servlet.filter.contextPath</param-name>
                   
@@ -80,7 +80,7 @@
           
     </servlet>
       
-    <servlet-mapping origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind/target/appengine-staging/WEB-INF/web.xml):5">
+    <servlet-mapping origin="WebDescriptor(file:///home/pedro-costa/Documentos/Universidade/ADC-Projeto/proj_ind-1/target/appengine-staging/WEB-INF/web.xml):5">
             
         <servlet-name>MainServices</servlet-name>
             
@@ -424,9 +424,9 @@
                 
         </cookie-config>
             
-        <tracking-mode>URL</tracking-mode>
-            
         <tracking-mode>COOKIE</tracking-mode>
+            
+        <tracking-mode>URL</tracking-mode>
           
     </session-config>
       

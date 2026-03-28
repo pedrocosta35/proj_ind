@@ -2,6 +2,7 @@ package pt.unl.fct.di.adc.firstwebapp.resources;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Calendar;
 import java.util.ArrayList;
 import java.util.logging.Logger;
@@ -108,10 +109,10 @@ public class PostRegistrationResource {
 				Key tokenKey = datastore.newKeyFactory()
 						.addAncestors(PathElement.of("User", data.input.username))
 						.setKind("AuthToken")
-						.newKey(token.tokenID);
+						.newKey(token.tokenId);
 
 				Entity tokenEntity = Entity.newBuilder(tokenKey)
-						.set("tokenId", token.tokenID)
+						.set("tokenId", token.tokenId)
 						.set("username", token.username)
 						.set("role", token.role.name())
 						.set("issuedAt", token.issuedAt)
@@ -157,7 +158,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON) // dar 200 sempre em erros
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response showUsers(ShowData data) {
-		if (data == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -165,7 +166,7 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER);
@@ -183,11 +184,11 @@ public class PostRegistrationResource {
 		return Response.ok(g.toJson(new SuccessResponse<>(new ShowUsersResponse(userList)))).build();
 	}
 
-	private void removeToken(String username, String tokenID) {
+	private void removeToken(String username, String tokenId) {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", username))
 				.setKind("AuthToken")
-				.newKey(tokenID);
+				.newKey(tokenId);
 
 		datastore.delete(tokenKey);
 	}
@@ -235,7 +236,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response deleteAccount(OneUserOpsData data) {
-		if (data == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -243,7 +244,7 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN);
@@ -291,7 +292,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response modAccount(ModUserData data) {
-		if (data == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -299,13 +300,12 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
-
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER, Role.USER);
 		if (tokenCheck != null) {
-			return tokenCheck; // stops here if token is expired
+			return tokenCheck;
 		}
 
 		Entity user = datastore.get(userKeyFactory.newKey(data.input.username));
@@ -314,15 +314,9 @@ public class PostRegistrationResource {
 					.entity(g.toJson(new FailedResponse(AppError.USER_NOT_FOUND)))
 					.build();
 		}
-		Role targetRole = Role.valueOf(user.getString("role"));
 
 		Role tokenRole = Role.valueOf(tokenEntity.getString("role"));
-		if (tokenEntity.getString("role").equals(Role.USER.name())
-				&& !data.input.username.equals(tokenEntity.getString("username"))) {
-			return Response.status(Status.OK)
-					.entity(g.toJson(new FailedResponse(AppError.UNAUTHORIZED)))
-					.build();
-		}
+		Role targetRole = Role.valueOf(user.getString("role"));
 
 		// users can only modify themselves
 		if (tokenRole == Role.USER && !data.input.username.equals(tokenEntity.getString("username"))) {
@@ -331,7 +325,7 @@ public class PostRegistrationResource {
 					.build();
 		}
 
-		// b officers can only modify users and themselfs
+		// b officers can only modify users and themselves
 		if (tokenRole == Role.BOFFICER && targetRole != Role.USER
 				&& !data.input.username.equals(tokenEntity.getString("username"))) {
 			return Response.status(Status.OK)
@@ -339,19 +333,38 @@ public class PostRegistrationResource {
 					.build();
 		}
 
-		Entity.Builder userBuilder = Entity.newBuilder(user);
-
-		if (data.input.attributes.phone != null && !data.input.attributes.phone.isBlank()) {
-			userBuilder.set("phone", data.input.attributes.phone);
-		} else {
+		Map<String, String> attributes = data.input.attributes;
+		if (attributes == null || attributes.isEmpty()) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_INPUT)))
 					.build();
 		}
 
-		if (data.input.attributes.address != null && !data.input.attributes.address.isBlank()) {
-			userBuilder.set("address", data.input.attributes.address);
-		} else {
+		Entity.Builder userBuilder = Entity.newBuilder(user);
+		boolean validAttribute = false;
+
+		for (Map.Entry<String, String> entry : attributes.entrySet()) {
+			switch (entry.getKey()) {
+				case "phone":
+					if (entry.getValue() != null && !entry.getValue().isBlank()) {
+						userBuilder.set("phone", entry.getValue());
+						validAttribute = true;
+					}
+					break;
+				case "address":
+					if (entry.getValue() != null && !entry.getValue().isBlank()) {
+						userBuilder.set("address", entry.getValue());
+						validAttribute = true;
+					}
+					break;
+				default:
+					return Response.status(Status.OK)
+							.entity(g.toJson(new FailedResponse(AppError.INVALID_INPUT)))
+							.build();
+			}
+		}
+
+		if (!validAttribute) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_INPUT)))
 					.build();
@@ -374,7 +387,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response showAuthenticatedSessions(ShowData data) {
-		if (data == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -382,7 +395,7 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN);
@@ -422,7 +435,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response showUserRole(OneUserOpsData data) {
-		if (data == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -430,7 +443,7 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER);
@@ -464,7 +477,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response changeUserRole(ChangeRoleData data) {
-		if (data == null || data.input.newRole == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.input.newRole == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -472,7 +485,7 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN);
@@ -525,7 +538,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response changeUserPassword(ChangePwdData data) {
-		if (data == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -540,7 +553,7 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER, Role.USER);
@@ -591,7 +604,7 @@ public class PostRegistrationResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response logout(OneUserOpsData data) {
-		if (data == null || data.token == null || data.token.tokenID == null) {
+		if (data == null || data.token == null || data.token.tokenId == null) {
 			return Response.status(Status.OK)
 					.entity(g.toJson(new FailedResponse(AppError.INVALID_TOKEN)))
 					.build();
@@ -599,7 +612,7 @@ public class PostRegistrationResource {
 		Key tokenKey = datastore.newKeyFactory()
 				.addAncestors(PathElement.of("User", data.token.username))
 				.setKind("AuthToken")
-				.newKey(data.token.tokenID);
+				.newKey(data.token.tokenId);
 
 		Entity tokenEntity = datastore.get(tokenKey);
 		Response tokenCheck = checkToken(tokenEntity, Role.ADMIN, Role.BOFFICER, Role.USER);
